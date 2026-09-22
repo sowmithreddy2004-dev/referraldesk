@@ -1,0 +1,17 @@
+version: "3.9"
+services:
+  postgres:
+    image: postgres:16
+    container_name: referraldesk_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: referraldesk
+      POSTGRES_PASSWORD: referraldesk
+      POSTGRES_DB: referraldesk
+    ports:
+      - "5432:5432"
+    volumes:
+      - referraldesk_pgdata:/var/lib/postgresql/data
+
+volumes:
+  referraldesk_pgdata:
