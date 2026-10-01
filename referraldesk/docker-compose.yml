@@ -1,4 +1,3 @@
-version: "3.9"
 services:
   postgres:
     image: postgres:16
@@ -6,12 +5,64 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: referraldesk
-      POSTGRES_PASSWORD: referraldesk
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: referraldesk
     ports:
       - "5432:5432"
     volumes:
       - referraldesk_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U referraldesk"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [referraldesk-net]
+
+  mock_ehr:
+    build:
+      context: .
+      dockerfile: mock_ehr/Dockerfile
+    container_name: referraldesk_mock_ehr
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+    networks: [referraldesk-net]
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: referraldesk_backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+psycopg2://referraldesk:${DB_PASSWORD}@postgres:5432/referraldesk
+      MOCK_EHR_URL: http://mock_ehr:9000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mock_ehr:
+        condition: service_started
+    ports:
+      - "8000:8000"
+    volumes:
+      - referraldesk_uploads:/app/uploads
+    networks: [referraldesk-net]
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: referraldesk_frontend
+    restart: unless-stopped
+    depends_on: [backend]
+    ports:
+      - "5173:80"
+    networks: [referraldesk-net]
+
+networks:
+  referraldesk-net:
+    driver: bridge
 
 volumes:
   referraldesk_pgdata:
+  referraldesk_uploads:
