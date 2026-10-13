@@ -1,0 +1,33 @@
+services:
+  mock_ehr:
+    image: us-central1-docker.pkg.dev/ee-vivekvardhan43862/referraldesk-repo/mock-ehr:v1
+    container_name: referraldesk_mock_ehr
+    restart: unless-stopped
+    networks: [referraldesk-net]
+
+  backend:
+    image: us-central1-docker.pkg.dev/ee-vivekvardhan43862/referraldesk-repo/backend:v3
+    container_name: referraldesk_backend
+    restart: unless-stopped
+    environment:
+      GCP_PROJECT: ee-vivekvardhan43862
+      DB_HOST: 10.37.0.3
+      UPLOAD_BUCKET: ee-vivekvardhan43862-referraldesk-uploads
+      MOCK_EHR_URL: http://mock_ehr:9000
+    depends_on:
+      - mock_ehr
+    networks: [referraldesk-net]
+
+  frontend:
+    image: us-central1-docker.pkg.dev/ee-vivekvardhan43862/referraldesk-repo/frontend:v1
+    container_name: referraldesk_frontend
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+    networks: [referraldesk-net]
+
+networks:
+  referraldesk-net:
+    driver: bridge
