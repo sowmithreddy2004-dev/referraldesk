@@ -4,6 +4,7 @@ import shutil
 from datetime import datetime
 
 import httpx
+import gcs_storage
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
@@ -20,7 +21,6 @@ MOCK_EHR_URL = os.getenv("MOCK_EHR_URL", "http://localhost:9000")
 UPLOAD_DIR = os.getenv("UPLOAD_DIR", "./uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="ReferralDesk API")
 
@@ -153,12 +153,9 @@ async def upload_document(referral_id: str, file: UploadFile = File(...), db: Se
     if not referral:
         raise HTTPException(status_code=404, detail="Referral not found")
 
-    referral_dir = os.path.join(UPLOAD_DIR, referral_id)
-    os.makedirs(referral_dir, exist_ok=True)
-    dest_path = os.path.join(referral_dir, file.filename)
-
-    with open(dest_path, "wb") as out:
-        shutil.copyfileobj(file.file, out)
+    dest_path = gcs_storage.save_upload(
+        f"{referral_id}/{file.filename}", file.file, file.content_type
+    )
 
     # storage_path today is a local path; swapping to S3 means storing the S3 key here instead.
     doc = ReferralDocument(

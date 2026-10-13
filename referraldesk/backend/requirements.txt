@@ -6,3 +6,7 @@ pydantic==2.9.2
 python-multipart==0.0.9
 httpx==0.27.2
 python-dotenv==1.0.1
+
+alembic
+google-cloud-storage
+google-cloud-secret-manager

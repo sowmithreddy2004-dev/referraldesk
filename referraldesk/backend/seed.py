@@ -5,7 +5,6 @@ Run this once after the tables exist to populate realistic demo data:
 from database import SessionLocal, Base, engine
 from models import Patient, Provider, InsurancePlan
 
-Base.metadata.create_all(bind=engine)
 
 db = SessionLocal()
 
