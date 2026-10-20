@@ -1,0 +1,29 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: backend
+  namespace: referraldesk
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels: {app: backend}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: frontend
+  namespace: referraldesk
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels: {app: frontend}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: mock-ehr
+  namespace: referraldesk
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels: {app: mock-ehr}

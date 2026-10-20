@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: referraldesk
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: referraldesk-app
+  namespace: referraldesk
+  annotations:
+    iam.gke.io/gcp-service-account: referraldesk-vm-sa@ee-vivekvardhan43862.iam.gserviceaccount.com
