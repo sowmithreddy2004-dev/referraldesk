@@ -210,3 +210,24 @@ async def simulate_burst(count: int, db: Session = Depends(get_db)):
 @app.get("/api/health")
 def health():
     return {"status": "ok", "time": datetime.utcnow().isoformat()}
+
+
+# ---------- Kubernetes probes ----------
+@app.get("/healthz")
+def healthz():
+    """Liveness: the process is up and serving requests.
+    Deliberately checks nothing external, so a database outage never gets pods restarted."""
+    return {"status": "alive"}
+
+
+@app.get("/readyz")
+def readyz():
+    """Readiness: this pod can serve real traffic, which needs the database."""
+    from sqlalchemy import text
+    from fastapi.responses import JSONResponse
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+    except Exception:
+        return JSONResponse(status_code=503, content={"status": "not ready", "database": "unreachable"})
+    return {"status": "ready", "database": "ok"}
