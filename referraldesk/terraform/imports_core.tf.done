@@ -1,0 +1,14 @@
+import {
+  to = google_sql_database_instance.db
+  id = "projects/ee-vivekvardhan43862/instances/referraldesk-db"
+}
+
+import {
+  to = google_sql_database.app
+  id = "projects/ee-vivekvardhan43862/instances/referraldesk-db/databases/referraldesk"
+}
+
+import {
+  to = google_container_cluster.primary
+  id = "projects/ee-vivekvardhan43862/locations/us-central1-c/clusters/referraldesk-cluster"
+}

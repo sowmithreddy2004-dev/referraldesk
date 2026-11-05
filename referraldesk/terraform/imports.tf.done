@@ -1,0 +1,44 @@
+import {
+  to = google_service_account.app
+  id = "projects/ee-vivekvardhan43862/serviceAccounts/referraldesk-vm-sa@ee-vivekvardhan43862.iam.gserviceaccount.com"
+}
+
+import {
+  to = google_storage_bucket.uploads
+  id = "ee-vivekvardhan43862-referraldesk-uploads"
+}
+
+import {
+  to = google_storage_bucket_iam_member.app_object_user
+  id = "b/ee-vivekvardhan43862-referraldesk-uploads roles/storage.objectUser serviceAccount:referraldesk-vm-sa@ee-vivekvardhan43862.iam.gserviceaccount.com"
+}
+
+import {
+  to = google_secret_manager_secret.db_password
+  id = "projects/ee-vivekvardhan43862/secrets/referraldesk-db-password"
+}
+
+import {
+  to = google_secret_manager_secret_iam_member.app_secret_access
+  id = "projects/ee-vivekvardhan43862/secrets/referraldesk-db-password roles/secretmanager.secretAccessor serviceAccount:referraldesk-vm-sa@ee-vivekvardhan43862.iam.gserviceaccount.com"
+}
+
+import {
+  to = google_artifact_registry_repository.repo
+  id = "projects/ee-vivekvardhan43862/locations/us-central1/repositories/referraldesk-repo"
+}
+
+import {
+  to = google_artifact_registry_repository_iam_member.app_registry_reader
+  id = "projects/ee-vivekvardhan43862/locations/us-central1/repositories/referraldesk-repo roles/artifactregistry.reader serviceAccount:referraldesk-vm-sa@ee-vivekvardhan43862.iam.gserviceaccount.com"
+}
+
+import {
+  to = google_compute_global_address.ingress_ip
+  id = "projects/ee-vivekvardhan43862/global/addresses/referraldesk-ip"
+}
+
+import {
+  to = google_service_account_iam_member.workload_identity
+  id = "projects/ee-vivekvardhan43862/serviceAccounts/referraldesk-vm-sa@ee-vivekvardhan43862.iam.gserviceaccount.com roles/iam.workloadIdentityUser serviceAccount:ee-vivekvardhan43862.svc.id.goog[referraldesk/referraldesk-app]"
+}

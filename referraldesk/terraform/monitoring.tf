@@ -78,7 +78,7 @@ resource "google_monitoring_dashboard" "main" {
   dashboard_json = jsonencode({
     displayName = "ReferralDesk: Health and Errors"
     gridLayout = {
-      columns = 2
+      columns = "2"
       widgets = [
         {
           title = "Requests vs HTTP 5xx errors (per minute)"
@@ -86,6 +86,7 @@ resource "google_monitoring_dashboard" "main" {
             dataSets = [
               {
                 plotType       = "LINE"
+                targetAxis     = "Y1"
                 legendTemplate = "All requests"
                 timeSeriesQuery = {
                   timeSeriesFilter = {
@@ -100,6 +101,7 @@ resource "google_monitoring_dashboard" "main" {
               },
               {
                 plotType       = "STACKED_BAR"
+                targetAxis     = "Y1"
                 legendTemplate = "5xx errors"
                 timeSeriesQuery = {
                   timeSeriesFilter = {
@@ -120,7 +122,8 @@ resource "google_monitoring_dashboard" "main" {
           title = "CPU usage (cores) by container"
           xyChart = {
             dataSets = [{
-              plotType = "LINE"
+              plotType   = "LINE"
+              targetAxis = "Y1"
               timeSeriesQuery = {
                 timeSeriesFilter = {
                   filter = "metric.type=\"kubernetes.io/container/cpu/core_usage_time\" ${local.ns_filter}"
@@ -140,7 +143,8 @@ resource "google_monitoring_dashboard" "main" {
           title = "Memory used (bytes) by container"
           xyChart = {
             dataSets = [{
-              plotType = "LINE"
+              plotType   = "LINE"
+              targetAxis = "Y1"
               timeSeriesQuery = {
                 timeSeriesFilter = {
                   filter = "metric.type=\"kubernetes.io/container/memory/used_bytes\" ${local.ns_filter} metric.labels.memory_type=\"non-evictable\""
@@ -160,7 +164,8 @@ resource "google_monitoring_dashboard" "main" {
           title = "Container restarts"
           xyChart = {
             dataSets = [{
-              plotType = "STACKED_BAR"
+              plotType   = "STACKED_BAR"
+              targetAxis = "Y1"
               timeSeriesQuery = {
                 timeSeriesFilter = {
                   filter = "metric.type=\"kubernetes.io/container/restart_count\" ${local.ns_filter}"
