@@ -23,13 +23,15 @@ spec:
           matchLabels: {app: backend}
       containers:
       - name: backend
-        image: us-central1-docker.pkg.dev/ee-vivekvardhan43862/referraldesk-repo/backend:v4
+        image: us-central1-docker.pkg.dev/ee-vivekvardhan43862/referraldesk-repo/backend:v5
         ports: [{containerPort: 8000}]
         env:
         - {name: GCP_PROJECT, value: ee-vivekvardhan43862}
         - {name: DB_HOST, value: "10.37.0.3"}
         - {name: UPLOAD_BUCKET, value: ee-vivekvardhan43862-referraldesk-uploads}
         - {name: MOCK_EHR_URL, value: "http://mock-ehr:9000"}
+        - {name: APP_VERSION, value: "v5"}
+        - {name: ENABLE_FAULT_ENDPOINT, value: "true"}
         resources:
           requests: {cpu: 100m, memory: 256Mi}
           limits: {cpu: 500m, memory: 512Mi}

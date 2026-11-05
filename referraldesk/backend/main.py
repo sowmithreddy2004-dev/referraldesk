@@ -231,3 +231,75 @@ def readyz():
     except Exception:
         return JSONResponse(status_code=503, content={"status": "not ready", "database": "unreachable"})
     return {"status": "ready", "database": "ok"}
+
+
+# ---------- Milestone 6: structured JSON logging, version, controlled fault ----------
+import json
+import logging
+import sys
+import time
+
+from fastapi import Request
+from fastapi.responses import JSONResponse
+
+
+class JsonFormatter(logging.Formatter):
+    """One JSON object per line. Cloud Logging reads 'severity' and 'message' from it."""
+    def format(self, record):
+        entry = {
+            "severity": record.levelname,
+            "message": record.getMessage(),
+            "logger": record.name,
+        }
+        entry.update(getattr(record, "fields", {}))
+        if record.exc_info:
+            entry["exception"] = self.formatException(record.exc_info)
+        return json.dumps(entry, default=str)
+
+
+app_logger = logging.getLogger("referraldesk")
+app_logger.setLevel(logging.INFO)
+app_logger.propagate = False
+if not app_logger.handlers:
+    _handler = logging.StreamHandler(sys.stdout)
+    _handler.setFormatter(JsonFormatter())
+    app_logger.addHandler(_handler)
+
+PROBE_PATHS = {"/healthz", "/readyz"}
+
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start = time.time()
+    status = 500
+    try:
+        response = await call_next(request)
+        status = response.status_code
+        return response
+    finally:
+        # Probes run every few seconds; skip them so they don't drown the real traffic.
+        if request.url.path not in PROBE_PATHS:
+            app_logger.log(
+                logging.ERROR if status >= 500 else logging.INFO,
+                "http_request",
+                extra={"fields": {
+                    "event": "http_request",
+                    "method": request.method,
+                    "path": request.url.path,
+                    "status_code": status,
+                    "duration_ms": round((time.time() - start) * 1000, 1),
+                }},
+            )
+
+
+@app.get("/api/version")
+def version():
+    return {"version": os.getenv("APP_VERSION", "unknown")}
+
+
+@app.get("/api/debug/error")
+def controlled_error():
+    """Deliberate 500 for the monitoring demo. Only active when ENABLE_FAULT_ENDPOINT=true."""
+    if os.getenv("ENABLE_FAULT_ENDPOINT") != "true":
+        return JSONResponse(status_code=404, content={"detail": "Not found"})
+    return JSONResponse(status_code=500, content={"detail": "controlled test error"})
