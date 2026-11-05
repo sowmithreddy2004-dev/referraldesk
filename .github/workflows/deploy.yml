@@ -1,0 +1,95 @@
+name: build-deploy-rollback
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  CLUSTER: referraldesk-cluster
+  ZONE: us-central1-c
+  NAMESPACE: referraldesk
+  DEPLOYMENT: backend
+  IMAGE: us-central1-docker.pkg.dev/ee-vivekvardhan43862/referraldesk-repo/backend
+  APP_URL: https://8-233-65-8.sslip.io
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/544867581271/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+          service_account: referraldesk-deployer@ee-vivekvardhan43862.iam.gserviceaccount.com
+
+      - uses: google-github-actions/setup-gcloud@v2
+        with:
+          install_components: gke-gcloud-auth-plugin
+
+      - uses: google-github-actions/get-gke-credentials@v2
+        with:
+          cluster_name: ${{ env.CLUSTER }}
+          location: ${{ env.ZONE }}
+
+      - name: Build and push image (tagged with commit SHA)
+        run: |
+          gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+          docker build -f referraldesk/backend/Dockerfile -t "$IMAGE:$GITHUB_SHA" referraldesk
+          docker push "$IMAGE:$GITHUB_SHA"
+
+      - name: Record currently served version
+        run: |
+          PREV=$(curl -fsS "$APP_URL/api/version" | python3 -c 'import sys,json;print(json.load(sys.stdin)["version"])')
+          echo "PREV_VERSION=$PREV" >> "$GITHUB_ENV"
+          echo "Previous version serving traffic: $PREV"
+
+      - name: Deploy to GKE
+        id: deploy
+        env:
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+        run: |
+          SIM=false
+          case "$COMMIT_MSG" in *"[simulate-failure]"*) SIM=true;; esac
+          echo "Simulate failure: $SIM"
+          C=$(kubectl -n "$NAMESPACE" get deploy "$DEPLOYMENT" -o jsonpath='{.spec.template.spec.containers[0].name}')
+          kubectl -n "$NAMESPACE" patch deploy "$DEPLOYMENT" -p "{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"$C\",\"image\":\"$IMAGE:$GITHUB_SHA\",\"env\":[{\"name\":\"APP_VERSION\",\"value\":\"$GITHUB_SHA\"},{\"name\":\"SIMULATE_READINESS_FAILURE\",\"value\":\"$SIM\"}]}]}}}}"
+          kubectl -n "$NAMESPACE" rollout status "deploy/$DEPLOYMENT" --timeout=90s
+
+      - name: Health check new version
+        id: verify
+        run: |
+          ok=0
+          for i in $(seq 1 20); do
+            V=$(curl -fsS "$APP_URL/api/version" | python3 -c 'import sys,json;print(json.load(sys.stdin)["version"])' || echo none)
+            H=$(curl -s -o /dev/null -w '%{http_code}' "$APP_URL/api/health")
+            echo "attempt $i: version=$V health=$H"
+            if [ "$V" = "$GITHUB_SHA" ] && [ "$H" = "200" ]; then ok=$((ok+1)); else ok=0; fi
+            if [ "$ok" -ge 3 ]; then echo "HEALTHY: $GITHUB_SHA is serving traffic"; exit 0; fi
+            sleep 5
+          done
+          echo "Health check failed"
+          exit 1
+
+      - name: Roll back to previous version
+        if: failure() && steps.deploy.conclusion != 'skipped'
+        run: |
+          echo "Deploy or health check failed. Rolling back."
+          kubectl -n "$NAMESPACE" rollout undo "deploy/$DEPLOYMENT"
+          kubectl -n "$NAMESPACE" rollout status "deploy/$DEPLOYMENT" --timeout=120s
+          ok=0
+          for i in $(seq 1 20); do
+            V=$(curl -fsS "$APP_URL/api/version" | python3 -c 'import sys,json;print(json.load(sys.stdin)["version"])' || echo none)
+            H=$(curl -s -o /dev/null -w '%{http_code}' "$APP_URL/api/health")
+            echo "verify rollback $i: version=$V health=$H (expected $PREV_VERSION)"
+            if [ "$V" = "$PREV_VERSION" ] && [ "$H" = "200" ]; then ok=$((ok+1)); else ok=0; fi
+            if [ "$ok" -ge 3 ]; then echo "ROLLBACK VERIFIED: previous version $PREV_VERSION is serving traffic"; exit 0; fi
+            sleep 5
+          done
+          echo "Rollback verification failed"
+          exit 1

@@ -303,3 +303,14 @@ def controlled_error():
     if os.getenv("ENABLE_FAULT_ENDPOINT") != "true":
         return JSONResponse(status_code=404, content={"detail": "Not found"})
     return JSONResponse(status_code=500, content={"detail": "controlled test error"})
+
+
+# --- M6: controlled failure switch for the rollback demo ---
+from fastapi.responses import JSONResponse as _JSONResponse
+
+
+@app.middleware("http")
+async def simulate_readiness_failure(request, call_next):
+    if os.environ.get("SIMULATE_READINESS_FAILURE", "false") == "true" and request.url.path == "/readyz":
+        return _JSONResponse({"detail": "simulated readiness failure"}, status_code=503)
+    return await call_next(request)
